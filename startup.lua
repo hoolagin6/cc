@@ -3,25 +3,45 @@ local function getCacheBuster()
     return math.random(1, 1000000)
 end
 
-local GITHUB_URL = "https://raw.githubusercontent.com/hoolagin6/cc/main/program.lua?cb=" .. getCacheBuster()
-local PROGRAM_NAME = "program.lua"
+local cb = getCacheBuster()
+local BASE_URL = "https://raw.githubusercontent.com/hoolagin6/cc/main/"
 
-print("Checking for updates...")
-
-local response = http.get(GITHUB_URL)
-if response then
-    print("Update found! Downloading...")
-    local file = fs.open(PROGRAM_NAME, "w")
-    file.write(response.readAll())
-    file.close()
-    response.close()
-    print("Update successful.")
-else
-    print("Could not reach GitHub. Running local version...")
+local function download(url, path)
+    local resp = http.get(url .. "?cb=" .. cb)
+    if resp then
+        local f = fs.open(path, "w")
+        f.write(resp.readAll())
+        f.close()
+        resp.close()
+        return true
+    end
+    return false
 end
 
-if fs.exists(PROGRAM_NAME) then
-    shell.run(PROGRAM_NAME)
+print("Syncing Art Gallery...")
+if not fs.exists("art") then fs.makeDir("art") end
+
+-- Get the list of art files
+if download(BASE_URL .. "art/list.txt", "art/list.txt") then
+    local f = fs.open("art/list.txt", "r")
+    local line = f.readLine()
+    while line do
+        print(" Downloading: " .. line)
+        download(BASE_URL .. "art/" .. line, "art/" .. line)
+        line = f.readLine()
+    end
+    f.close()
+end
+
+print("Updating Program...")
+if download(BASE_URL .. "program.lua", "program.lua") then
+    print("Update successful.")
 else
-    print("Error: Program file not found!")
+    print("Running local version...")
+end
+
+if fs.exists("program.lua") then
+    shell.run("program.lua")
+else
+    print("Error: program.lua not found!")
 end
