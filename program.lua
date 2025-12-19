@@ -103,19 +103,33 @@ end
 
 -- Channel 4: Gallery
 local function drawGallery()
+    -- Re-scan every few seconds or when empty
+    if #artList == 0 or os.clock() % 10 < 0.1 then
+        artList = {}
+        if fs.exists("art") then
+            local allFiles = fs.list("art")
+            for _, file in ipairs(allFiles) do
+                if file:match("%.nfp$") then
+                    table.insert(artList, file)
+                end
+            end
+        end
+    end
+
     if #artList == 0 then
         monitor.setCursorPos(2, 5)
-        monitor.write("NO ART FOUND IN /art/")
+        monitor.write("NO .NFP ART IN /art/")
         return
     end
+
     local imgPath = "art/" .. artList[currentArtIndex]
     local img = paintutils.loadImage(imgPath)
     if img then
         local ix = math.floor((w - 7) / 2) + 1
         local iy = math.floor((h - 7) / 2) + 1
-        term.redirect(monitor)
-        paintutils.drawImage(img, ix, iy)
-        term.restore()
+        local oldTerm = term.redirect(monitor)
+        pcall(function() paintutils.drawImage(img, ix, iy) end)
+        term.redirect(oldTerm)
     end
 end
 

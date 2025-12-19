@@ -26,8 +26,16 @@ if download(BASE_URL .. "art/list.txt", "art/list.txt") then
     local f = fs.open("art/list.txt", "r")
     local line = f.readLine()
     while line do
-        print(" Downloading: " .. line)
-        download(BASE_URL .. "art/" .. line, "art/" .. line)
+        -- Trim whitespace/newlines
+        line = line:gsub("%s+", "")
+        if #line > 0 then
+            print(" Downloading: " .. line)
+            if download(BASE_URL .. "art/" .. line, "art/" .. line) then
+                print("  OK.")
+            else
+                print("  FAILED.")
+            end
+        end
         line = f.readLine()
     end
     f.close()
