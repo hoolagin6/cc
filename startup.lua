@@ -1,5 +1,10 @@
-local GITHUB_URL = "https://raw.githubusercontent.com/hoolagin6/cc/main/main.lua"
-local PROGRAM_NAME = "main.lua"
+local function getCacheBuster()
+    if os.epoch then return os.epoch("utc") end
+    return math.random(1, 1000000)
+end
+
+local GITHUB_URL = "https://raw.githubusercontent.com/hoolagin6/cc/main/program.lua?cb=" .. getCacheBuster()
+local PROGRAM_NAME = "program.lua"
 
 print("Checking for updates...")
 
