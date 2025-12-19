@@ -125,8 +125,12 @@ local function drawGallery()
     local imgPath = "art/" .. artList[currentArtIndex]
     local img = paintutils.loadImage(imgPath)
     if img then
-        local ix = math.floor((w - 7) / 2) + 1
-        local iy = math.floor((h - 7) / 2) + 1
+        -- Calculate dimensions for centering
+        local imgW = #img[1]
+        local imgH = #img
+        local ix = math.floor((w - imgW) / 2) + 1
+        local iy = math.floor((h - imgH) / 2) + 1
+        
         local oldTerm = term.redirect(monitor)
         pcall(function() paintutils.drawImage(img, ix, iy) end)
         term.redirect(oldTerm)

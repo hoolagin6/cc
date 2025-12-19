@@ -1,2 +1,4 @@
 mushroom.nfp
 heart.nfp
+landscape.nfp
+space.nfp
