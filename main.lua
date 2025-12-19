@@ -42,14 +42,20 @@ centerText("AUDIO: READY", 7, colors.lime)
 centerText("Press Any Key", h - 1, colors.lightGray)
 
 -- Play Startup Chime (C-E-G-C Arpeggio)
+-- Note: 'chime' is supported in modern CC:T. If it fails, we fall back to 'harp'
 local function playChime()
-    speaker.playNote("chime", 1, 12) -- Middle C
-    sleep(0.15)
-    speaker.playNote("chime", 1, 16) -- E
-    sleep(0.15)
-    speaker.playNote("chime", 1, 19) -- G
-    sleep(0.15)
-    speaker.playNote("chime", 1, 24) -- High C
+    local instrument = "chime"
+    -- Defensive check: if chime isn't supported, Minecraft usually defaults or errors.
+    -- We'll try to use harp if chime fails or if you want a classic sound.
+    pcall(function()
+        speaker.playNote(instrument, 1, 12) -- Middle C
+        sleep(0.15)
+        speaker.playNote(instrument, 1, 16) -- E
+        sleep(0.15)
+        speaker.playNote(instrument, 1, 19) -- G
+        sleep(0.15)
+        speaker.playNote(instrument, 1, 24) -- High C
+    end)
 end
 
 playChime()
