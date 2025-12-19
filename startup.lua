@@ -1,74 +1,22 @@
-local monitor = peripheral.find("monitor")
-local speaker = peripheral.find("speaker")
+local GITHUB_URL = "https://raw.githubusercontent.com/hoolagin6/cc/main/main.lua"
+local PROGRAM_NAME = "main.lua"
 
-if not monitor then
-    print("Error: No monitor found attached to the computer.")
-    return
+print("Checking for updates...")
+
+local response = http.get(GITHUB_URL)
+if response then
+    print("Update found! Downloading...")
+    local file = fs.open(PROGRAM_NAME, "w")
+    file.write(response.readAll())
+    file.close()
+    response.close()
+    print("Update successful.")
+else
+    print("Could not reach GitHub. Running local version...")
 end
 
-if not speaker then
-    print("Error: No speaker found attached to the computer.")
-    return
-end
-
--- Configuration
-local bgColor = colors.black
-local textColor = colors.cyan
-local accentColor = colors.yellow
-
--- Setup monitor
-monitor.setTextScale(1)
-monitor.setBackgroundColor(bgColor)
-monitor.setTextColor(textColor)
-monitor.clear()
-
-local w, h = monitor.getSize()
-
-local function centerText(text, y, color)
-    if color then monitor.setTextColor(color) end
-    local x = math.floor((w - #text) / 2) + 1
-    monitor.setCursorPos(x, y)
-    monitor.write(text)
-end
-
--- UI Layout
-centerText("====================", 2, accentColor)
-centerText("CC:TWEAKED SYSTEM", 3, textColor)
-centerText("====================", 4, accentColor)
-
-centerText("STATUS: ONLINE", 6, colors.lime)
-centerText("AUDIO: READY", 7, colors.lime)
-
-centerText("Press Any Key", h - 1, colors.lightGray)
-
--- Play Startup Chime (C-E-G-C Arpeggio)
-local function playChime()
-    speaker.playNote("chime", 1, 12) -- Middle C
-    sleep(0.15)
-    speaker.playNote("chime", 1, 16) -- E
-    sleep(0.15)
-    speaker.playNote("chime", 1, 19) -- G
-    sleep(0.15)
-    speaker.playNote("chime", 1, 24) -- High C
-end
-
-playChime()
-
-print("Program running on monitor.")
-print("Playing chime...")
-
--- Wait for user to interact or exit
-while true do
-    local event, key = os.pullEvent()
-    if event == "key" then
-        centerText("ALERT: KEY PRESSED", 9, colors.orange)
-        speaker.playNote("bit", 1, 20)
-        sleep(0.5)
-        centerText("                  ", 9) -- Clear alert
-    elseif event == "monitor_touch" then
-        centerText("SCREEN TOUCHED!", 9, colors.pink)
-        speaker.playNote("bell", 1, 24)
-        sleep(0.5)
-        centerText("                ", 9)
-    end
+if fs.exists(PROGRAM_NAME) then
+    shell.run(PROGRAM_NAME)
+else
+    print("Error: Program file not found!")
 end
