@@ -2,85 +2,136 @@ local monitor = peripheral.find("monitor")
 local speaker = peripheral.find("speaker")
 
 if not monitor then
-    print("Error: No monitor found attached to the computer.")
+    print("Error: No monitor found.")
     return
 end
 
-if not speaker then
-    print("Error: No speaker found attached to the computer.")
-    return
-end
-
--- Configuration
-local bgColor = colors.black
-local textColor = colors.cyan
-local accentColor = colors.yellow
-
--- Setup monitor
-monitor.setTextScale(1)
-monitor.setBackgroundColor(bgColor)
-monitor.setTextColor(textColor)
-monitor.clear()
-
+-- TV Settings
+local w, h = monitor.getSize()
+monitor.setTextScale(0.5) -- High detail for TV look
 local w, h = monitor.getSize()
 
-local function centerText(text, y, color)
-    if color then monitor.setTextColor(color) end
-    local x = math.floor((w - #text) / 2) + 1
-    monitor.setCursorPos(x, y)
-    monitor.write(text)
+local channels = {"COZY FIRE", "RETRO BOUNCE", "SYSTEM LOG", "OFF"}
+local currentChannel = 1
+local running = true
+
+-- Colors
+local c_bg = colors.black
+local c_acc = colors.red -- Classic TV brand color
+local c_txt = colors.white
+
+local function drawHeader()
+    monitor.setBackgroundColor(colors.gray)
+    monitor.setTextColor(colors.white)
+    monitor.setCursorPos(1, 1)
+    monitor.clearLine()
+    local time = textutils.formatTime(os.time(), true)
+    monitor.write(" [TV] BASEMENT HUB ")
+    monitor.setCursorPos(w - #time, 1)
+    monitor.write(time)
 end
 
--- UI Layout
-centerText("====================", 2, accentColor)
-centerText("CC:TWEAKED SYSTEM", 3, textColor)
-centerText("====================", 4, accentColor)
+local function drawFooter()
+    monitor.setBackgroundColor(colors.gray)
+    monitor.setTextColor(colors.lightGray)
+    monitor.setCursorPos(1, h)
+    monitor.clearLine()
+    monitor.write(" CH: " .. currentChannel .. " - " .. channels[currentChannel])
+    monitor.setCursorPos(w - 12, h)
+    monitor.write("TOUCH TO SW")
+end
 
-centerText("STATUS: ONLINE", 6, colors.lime)
-centerText("AUDIO: READY", 7, colors.lime)
-
-centerText("Press Any Key", h - 1, colors.lightGray)
-
--- Play Startup Chime (C-E-G-C Arpeggio)
--- Using 'harp' and 'pling' as they are the most compatible Minecraft sounds
-local function playChime()
-    local notes = {12, 16, 19, 24}
-    for _, note in ipairs(notes) do
-        pcall(function() 
-            speaker.playNote("harp", 1, note)
-            speaker.playNote("pling", 1, note) 
-        end)
-        sleep(0.15)
+-- Channel 1: Cozy Fireplace
+local fireFrames = {"^", "~", "*", "v"}
+local function drawFire()
+    monitor.setBackgroundColor(c_bg)
+    local cx, cy = math.floor(w/2), math.floor(h/2)
+    for i = 1, 15 do
+        local x = math.random(cx-5, cx+5)
+        local y = math.random(cy, cy+3)
+        monitor.setCursorPos(x, y)
+        monitor.setTextColor(math.random() > 0.5 and colors.orange or colors.red)
+        monitor.write(fireFrames[math.random(1, #fireFrames)])
+    end
+    -- Crackle sound
+    if math.random() > 0.9 then
+        pcall(function() speaker.playNote("wood", 0.5, math.random(1,5)) end)
     end
 end
 
-playChime()
+-- Channel 2: Retro Bounce (DVD style)
+local bx, by = 5, 5
+local dx, dy = 1, 1
+local function drawBounce()
+    monitor.setBackgroundColor(c_bg)
+    monitor.setCursorPos(bx, by)
+    monitor.write("      ") -- clear old
+    
+    bx = bx + dx
+    by = by + dy
+    
+    if bx <= 1 or bx >= w - 4 then dx = -dx end
+    if by <= 2 or by >= h - 1 then dy = -dy end
+    
+    monitor.setCursorPos(bx, by)
+    monitor.setTextColor(colors.cyan)
+    monitor.write("C:T")
+end
 
-print("Program running on monitor.")
-print("Playing chime...")
+-- Channel 3: System Stats
+local function drawStats()
+    monitor.setBackgroundColor(c_bg)
+    monitor.setTextColor(colors.lime)
+    monitor.setCursorPos(2, 4)
+    monitor.write("> UPTIME: " .. math.floor(os.clock()))
+    monitor.setCursorPos(2, 5)
+    monitor.write("> SIG: STRONG")
+    monitor.setCursorPos(2, 6)
+    monitor.write("> TEMP: NOMINAL")
+end
 
--- Wait for user to interact
-while true do
+local function render()
+    monitor.setBackgroundColor(c_bg)
+    monitor.clear()
+    drawHeader()
+    drawFooter()
+    
+    if currentChannel == 1 then
+        drawFire()
+    elseif currentChannel == 2 then
+        drawBounce()
+    elseif currentChannel == 3 then
+        drawStats()
+    else
+        monitor.clear()
+        monitor.setCursorPos(math.floor(w/2)-2, math.floor(h/2))
+        monitor.setTextColor(colors.gray)
+        monitor.write("OFF")
+    end
+end
+
+-- Main Loop
+local timer = os.startTimer(0.1)
+while running do
     local event, p1, p2, p3 = os.pullEvent()
     
-    if event == "key" then
-        -- p1 is the key code
-        centerText("ALERT: KEY " .. tostring(p1) .. " PRESSED", 9, colors.orange)
-        pcall(function() speaker.playNote("bit", 1, 20) end)
-        sleep(0.5)
-        centerText("                        ", 9) -- Clear alert
-        
-    elseif event == "char" then
-        -- p1 is the character typed
-        centerText("TYPED: " .. p1, 10, colors.yellow)
-        sleep(0.5)
-        centerText("              ", 10)
-
+    if event == "timer" and p1 == timer then
+        render()
+        timer = os.startTimer(0.1)
     elseif event == "monitor_touch" then
-        -- p1: side, p2: x, p3: y
-        centerText("SCREEN TOUCHED AT " .. p2 .. "," .. p3, 9, colors.pink)
-        pcall(function() speaker.playNote("bell", 1, 24) end)
-        sleep(0.5)
-        centerText("                        ", 9)
+        currentChannel = (currentChannel % #channels) + 1
+        pcall(function() speaker.playNote("bit", 1, 15) end)
+    elseif event == "key" then
+        if p1 == keys.q then running = false end
+        -- Numbers to change channels
+        if p1 >= 2 and p1 <= 5 then 
+            currentChannel = p1 - 1
+            pcall(function() speaker.playNote("bit", 1, 15) end)
+        end
     end
 end
+
+monitor.setBackgroundColor(colors.black)
+monitor.clear()
+monitor.setCursorPos(1,1)
+print("TV Switched Off.")
