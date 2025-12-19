@@ -1,3 +1,6 @@
+-- Wait a moment for peripherals to stabilize on boot
+sleep(0.5)
+
 local monitor = peripheral.find("monitor")
 local speaker = peripheral.find("speaker")
 
@@ -12,21 +15,27 @@ local w, h
 
 if isAdvanced then
     monitor.setTextScale(0.5)
-    print("Advanced Monitor detected: Color & Touch enabled.")
 else
     monitor.setTextScale(1)
-    print("Standard Monitor detected: B&W only. Use Keyboard to switch.")
 end
 w, h = monitor.getSize()
 
-local channels = {"COZY FIRE", "RETRO BOUNCE", "SYSTEM LOG", "OFF"}
+local channels = {"COZY FIRE", "RETRO BOUNCE", "SYSTEM LOG", "GALLERY", "OFF"}
 local currentChannel = 1
 local running = true
 
 -- Colors
 local c_bg = colors.black
-local c_acc = colors.red -- Classic TV brand color
+local c_acc = colors.red 
 local c_txt = colors.white
+
+-- Gallery Settings
+local artList = {}
+if fs.exists("art") then
+    artList = fs.list("art")
+end
+local currentArtIndex = 1
+local artTimer = os.startTimer(3) -- Change art every 3 seconds
 
 local function drawHeader()
     monitor.setBackgroundColor(colors.gray)
@@ -50,7 +59,6 @@ local function drawFooter()
 end
 
 -- Channel 1: Cozy Fireplace
-local fireFrames = {"^", "~", "*", "v"}
 local function drawFire()
     monitor.setBackgroundColor(c_bg)
     local cx, cy = math.floor(w/2), math.floor(h/2)
@@ -64,26 +72,19 @@ local function drawFire()
         end
         monitor.write(fireChars[math.random(1, #fireChars)])
     end
-    -- Crackle sound: Using 'bassdrum' at low pitch for 1.7.3 BTA compatibility
     if math.random() > 0.8 then
         pcall(function() speaker.playNote("bassdrum", 0.5, 1) end)
     end
 end
 
--- Channel 2: Retro Bounce (DVD style)
+-- Channel 2: Retro Bounce
 local bx, by = 5, 5
 local dx, dy = 1, 1
 local function drawBounce()
-    monitor.setBackgroundColor(c_bg)
-    monitor.setCursorPos(bx, by)
-    monitor.write("   ") -- clear old
-    
     bx = bx + dx
     by = by + dy
-    
     if bx <= 1 or bx >= w - 3 then dx = -dx end
     if by <= 2 or by >= h - 1 then dy = -dy end
-    
     monitor.setCursorPos(bx, by)
     if isAdvanced then monitor.setTextColor(colors.cyan) end
     monitor.write("TV")
@@ -91,8 +92,7 @@ end
 
 -- Channel 3: System Stats
 local function drawStats()
-    monitor.setBackgroundColor(c_bg)
-    if isAdvanced then monitor.setTextColor(colors.lime) end
+    monitor.setTextColor(isAdvanced and colors.lime or colors.white)
     monitor.setCursorPos(2, 4)
     monitor.write("> UPTIME: " .. math.floor(os.clock()))
     monitor.setCursorPos(2, 5)
@@ -101,8 +101,37 @@ local function drawStats()
     monitor.write("> TEMP: NORM")
 end
 
+-- Channel 4: Gallery
+local function drawGallery()
+    if #artList == 0 then
+        monitor.setCursorPos(2, 5)
+        monitor.write("NO ART FOUND IN /art/")
+        return
+    end
+    local imgPath = "art/" .. artList[currentArtIndex]
+    local img = paintutils.loadImage(imgPath)
+    if img then
+        local ix = math.floor((w - 7) / 2) + 1
+        local iy = math.floor((h - 7) / 2) + 1
+        term.redirect(monitor)
+        paintutils.drawImage(img, ix, iy)
+        term.restore()
+    end
+end
+
+local function playChime()
+    local notes = {12, 16, 19, 24}
+    for _, note in ipairs(notes) do
+        pcall(function() 
+            speaker.playNote("harp", 1, note)
+            speaker.playNote("pling", 1, note) 
+        end)
+        sleep(0.15)
+    end
+end
+
 local function render()
-    if isAdvanced then monitor.setBackgroundColor(c_bg) end
+    monitor.setBackgroundColor(c_bg)
     monitor.clear()
     drawHeader()
     drawFooter()
@@ -113,30 +142,35 @@ local function render()
         drawBounce()
     elseif currentChannel == 3 then
         drawStats()
+    elseif currentChannel == 4 then
+        drawGallery()
     else
         monitor.clear()
         monitor.setCursorPos(math.floor(w/2)-1, math.floor(h/2))
-        if isAdvanced then monitor.setTextColor(colors.gray) end
         monitor.write("OFF")
     end
 end
 
--- Main Loop
+-- Startup
+playChime()
 term.clear()
 term.setCursorPos(1,1)
 print("TV CONTROLLER ACTIVE")
-print("--------------------")
-print("1-4 : Change Channel")
-print("Space : Next Channel")
-print("Q : Quit")
 
 local timer = os.startTimer(0.1)
 while running do
     local event, p1, p2, p3 = os.pullEvent()
     
-    if event == "timer" and p1 == timer then
-        render()
-        timer = os.startTimer(0.1)
+    if event == "timer" then
+        if p1 == timer then
+            render()
+            timer = os.startTimer(0.1)
+        elseif p1 == artTimer then
+            if #artList > 0 then
+                currentArtIndex = (currentArtIndex % #artList) + 1
+            end
+            artTimer = os.startTimer(3)
+        end
     elseif event == "monitor_touch" then
         currentChannel = (currentChannel % #channels) + 1
         pcall(function() speaker.playNote("harp", 1, 15) end)
@@ -146,7 +180,7 @@ while running do
         elseif p1 == keys.space then
             currentChannel = (currentChannel % #channels) + 1
             pcall(function() speaker.playNote("harp", 1, 15) end)
-        elseif p1 >= 2 and p1 <= 5 then 
+        elseif p1 >= 2 and p1 <= 6 then 
             currentChannel = (p1 - 1)
             pcall(function() speaker.playNote("harp", 1, 15) end)
         end
