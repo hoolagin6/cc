@@ -57,18 +57,28 @@ playChime()
 print("Program running on monitor.")
 print("Playing chime...")
 
--- Wait for user to interact or exit
+-- Wait for user to interact
 while true do
-    local event, key = os.pullEvent()
+    local event, p1, p2, p3 = os.pullEvent()
+    
     if event == "key" then
-        centerText("ALERT: KEY PRESSED", 9, colors.orange)
+        -- p1 is the key code
+        centerText("ALERT: KEY " .. tostring(p1) .. " PRESSED", 9, colors.orange)
         speaker.playNote("bit", 1, 20)
         sleep(0.5)
-        centerText("                  ", 9) -- Clear alert
+        centerText("                        ", 9) -- Clear alert
+        
+    elseif event == "char" then
+        -- p1 is the character typed
+        centerText("TYPED: " .. p1, 10, colors.yellow)
+        sleep(0.5)
+        centerText("              ", 10)
+
     elseif event == "monitor_touch" then
-        centerText("SCREEN TOUCHED!", 9, colors.pink)
+        -- p1: side, p2: x, p3: y
+        centerText("SCREEN TOUCHED AT " .. p2 .. "," .. p3, 9, colors.pink)
         speaker.playNote("bell", 1, 24)
         sleep(0.5)
-        centerText("                ", 9)
+        centerText("                        ", 9)
     end
 end
