@@ -42,20 +42,16 @@ centerText("AUDIO: READY", 7, colors.lime)
 centerText("Press Any Key", h - 1, colors.lightGray)
 
 -- Play Startup Chime (C-E-G-C Arpeggio)
--- Note: 'chime' is supported in modern CC:T. If it fails, we fall back to 'harp'
+-- Using 'harp' and 'pling' as they are the most compatible Minecraft sounds
 local function playChime()
-    local instrument = "chime"
-    -- Defensive check: if chime isn't supported, Minecraft usually defaults or errors.
-    -- We'll try to use harp if chime fails or if you want a classic sound.
-    pcall(function()
-        speaker.playNote(instrument, 1, 12) -- Middle C
+    local notes = {12, 16, 19, 24}
+    for _, note in ipairs(notes) do
+        pcall(function() 
+            speaker.playNote("harp", 1, note)
+            speaker.playNote("pling", 1, note) 
+        end)
         sleep(0.15)
-        speaker.playNote(instrument, 1, 16) -- E
-        sleep(0.15)
-        speaker.playNote(instrument, 1, 19) -- G
-        sleep(0.15)
-        speaker.playNote(instrument, 1, 24) -- High C
-    end)
+    end
 end
 
 playChime()
@@ -70,7 +66,7 @@ while true do
     if event == "key" then
         -- p1 is the key code
         centerText("ALERT: KEY " .. tostring(p1) .. " PRESSED", 9, colors.orange)
-        speaker.playNote("bit", 1, 20)
+        pcall(function() speaker.playNote("bit", 1, 20) end)
         sleep(0.5)
         centerText("                        ", 9) -- Clear alert
         
@@ -83,7 +79,7 @@ while true do
     elseif event == "monitor_touch" then
         -- p1: side, p2: x, p3: y
         centerText("SCREEN TOUCHED AT " .. p2 .. "," .. p3, 9, colors.pink)
-        speaker.playNote("bell", 1, 24)
+        pcall(function() speaker.playNote("bell", 1, 24) end)
         sleep(0.5)
         centerText("                        ", 9)
     end
