@@ -4,9 +4,9 @@ import sys
 import os
 import glob
 
-# --- Default Settings for 2w1h monitor ---
-DEFAULT_W = 36 
-DEFAULT_H = 10
+# --- Default Settings ---
+DEFAULT_W = 57 
+DEFAULT_H = 67
 FRAME_SKIP = 2
 GAMMA_CORRECTION = 1.2 
 
@@ -23,22 +23,35 @@ def get_closest_color_index(pixel):
     distances = np.sum((PALETTE_RGB - pixel) ** 2, axis=1)
     return np.argmin(distances)
 
-def convert_video(input_file):
+def calculate_resolution(w_blocks, h_blocks):
+    # Width increments: 21, 21, 22, 21, 21, 22, 21...
+    w_inc = [21, 21, 22, 21, 21, 22, 21]
+    target_w = 15
+    for i in range(min(w_blocks - 1, len(w_inc))):
+        target_w += w_inc[i]
+    if w_blocks > 8: target_w += (w_blocks - 8) * 21
+        
+    # Height increments: 14, 14, 14, 15, 14...
+    h_inc = [14, 14, 14, 15, 14]
+    target_h = 10
+    for i in range(min(h_blocks - 1, len(h_inc))):
+        target_h += h_inc[i]
+    if h_blocks > 6: target_h += (h_blocks - 6) * 14
+        
+    return target_w, target_h
+
+def convert_video(input_file, target_w, target_h):
     base_name = os.path.splitext(input_file)[0]
     output_file = base_name + ".vid"
     
-    print(f"Converting '{input_file}' to '{output_file}'...")
+    print(f"Converting '{input_file}' ({target_w}x{target_h})...")
     
-    target_w = DEFAULT_W
-    target_h = DEFAULT_H
-
     cap = cv2.VideoCapture(input_file)
     if not cap.isOpened():
         print(f"Error opening video stream for {input_file}.")
         return
 
     with open(output_file, "w") as f:
-        # Write Header
         f.write(f"{target_w},{target_h}\n")
         
         frame_count = 0
@@ -49,11 +62,9 @@ def convert_video(input_file):
             if not ret: break
 
             if frame_count % FRAME_SKIP == 0:
-                # Resize
                 resized = cv2.resize(frame, (target_w, target_h), interpolation=cv2.INTER_AREA)
                 resized = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
 
-                # Gamma Correction
                 if GAMMA_CORRECTION != 1.0:
                     invGamma = 1.0 / GAMMA_CORRECTION
                     table = np.array([((i / 255.0) ** invGamma) * 255
@@ -62,7 +73,6 @@ def convert_video(input_file):
 
                 f_img = resized.astype(float)
                 
-                # Dither & Write Lines
                 for y in range(target_h):
                     line_hex = ""
                     for x in range(target_w):
@@ -72,8 +82,6 @@ def convert_video(input_file):
                         line_hex += PALETTE_HEX[idx]
                         
                         quant_error = old_pixel - new_pixel
-                        
-                        # Floyd-Steinberg error diffusion
                         if x + 1 < target_w:
                             f_img[y, x + 1] += quant_error * 7 / 16
                         if x - 1 >= 0 and y + 1 < target_h:
@@ -83,7 +91,6 @@ def convert_video(input_file):
                         if x + 1 < target_w and y + 1 < target_h:
                             f_img[y + 1, x + 1] += quant_error * 1 / 16
                     
-                    # Write directly to disk
                     f.write(line_hex + "\n")
                 
                 frames_written += 1
@@ -99,17 +106,23 @@ def convert_video(input_file):
 def main():
     print("--- Bulk Video Converter ---")
     
-    # Check for mp4 files
     mp4_files = glob.glob("*.mp4")
-    
     if not mp4_files:
-        print("No .mp4 files found in the current directory.")
+        print("No .mp4 files found.")
         return
 
-    print(f"Found {len(mp4_files)} files: {mp4_files}")
+    # Prompt for blocks
+    try:
+        bw = int(input("Monitor Width in BLOCKS (e.g. 3): ") or 1)
+        bh = int(input("Monitor Height in BLOCKS (e.g. 1): ") or 1)
+        tw, th = calculate_resolution(bw, bh)
+        print(f"Calculated Resolution: {tw}x{th}")
+    except ValueError:
+        print("Invalid input. Using 1x1 default.")
+        tw, th = 15, 10
 
     for mp4 in mp4_files:
-        convert_video(mp4)
+        convert_video(mp4, tw, th)
         
     print("\nAll done!")
 
