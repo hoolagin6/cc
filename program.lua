@@ -20,7 +20,7 @@ else
 end
 w, h = monitor.getSize()
 
-local channels = {"COZY FIRE", "RETRO BOUNCE", "SYSTEM LOG", "GALLERY", "OFF"}
+local channels = {"COZY FIRE", "RETRO BOUNCE", "SYSTEM LOG", "ART SHOW", "CINEMA", "OFF"}
 local currentChannel = 1
 local running = true
 
@@ -101,39 +101,37 @@ local function drawStats()
     monitor.write("> TEMP: NORM")
 end
 
--- Channel 4: Gallery
-local function drawGallery()
-    -- Re-scan every few seconds or when empty
-    if #artList == 0 or os.clock() % 10 < 0.1 then
-        artList = {}
-        if fs.exists("art") then
-            local allFiles = fs.list("art")
-            for _, file in ipairs(allFiles) do
-                if file:match("%.nfp$") then
-                    table.insert(artList, file)
-                end
-            end
-        end
+-- Channel 4: Art Show (Sanjuuni BIMG)
+local function drawArtShow()
+    monitor.setBackgroundColor(colors.black)
+    monitor.setTextColor(colors.white)
+    local cx, cy = math.floor(w/2), math.floor(h/2)
+    
+    if not fs.exists("art/hool6-face.bimg") then
+        monitor.setCursorPos(cx - 10, cy)
+        monitor.write("MISSING: hool6-face.bimg")
+    else
+        monitor.setCursorPos(cx - 10, cy)
+        monitor.write("PRESS [SPACE] FOR ART")
+        monitor.setCursorPos(cx - 8, cy + 1)
+        monitor.write("(2x2 Scale 0.5)")
     end
+end
 
-    if #artList == 0 then
-        monitor.setCursorPos(2, 5)
-        monitor.write("NO .NFP ART IN /art/")
-        return
-    end
-
-    local imgPath = "art/" .. artList[currentArtIndex]
-    local img = paintutils.loadImage(imgPath)
-    if img then
-        -- Calculate dimensions for centering
-        local imgW = #img[1]
-        local imgH = #img
-        local ix = math.floor((w - imgW) / 2) + 1
-        local iy = math.floor((h - imgH) / 2) + 1
-        
-        local oldTerm = term.redirect(monitor)
-        pcall(function() paintutils.drawImage(img, ix, iy) end)
-        term.redirect(oldTerm)
+-- Channel 5: Cinema (Sanjuuni)
+local function drawCinema()
+    monitor.setBackgroundColor(colors.black)
+    monitor.setTextColor(colors.white)
+    local cx, cy = math.floor(w/2), math.floor(h/2)
+    
+    if not fs.exists("video.32vid") then
+        monitor.setCursorPos(cx - 8, cy)
+        monitor.write("MISSING: video.32vid")
+    else
+        monitor.setCursorPos(cx - 10, cy)
+        monitor.write("PRESS [SPACE] TO PLAY")
+        monitor.setCursorPos(cx - 8, cy + 1)
+        monitor.write("(2x2 Scale 0.5)")
     end
 end
 
@@ -161,7 +159,9 @@ local function render()
     elseif currentChannel == 3 then
         drawStats()
     elseif currentChannel == 4 then
-        drawGallery()
+        drawArtShow()
+    elseif currentChannel == 5 then
+        drawCinema()
     else
         monitor.clear()
         monitor.setCursorPos(math.floor(w/2)-1, math.floor(h/2))
@@ -196,9 +196,23 @@ while running do
         if p1 == keys.q then 
             running = false 
         elseif p1 == keys.space then
-            currentChannel = (currentChannel % #channels) + 1
-            pcall(function() speaker.playNote("harp", 1, 15) end)
-        elseif p1 >= 2 and p1 <= 6 then 
+            if currentChannel == 4 and fs.exists("art/hool6-face.bimg") then
+                local oldTerm = term.redirect(monitor)
+                shell.run("bimg-player.lua", "art/hool6-face.bimg")
+                term.redirect(oldTerm)
+                render()
+            elseif currentChannel == 5 and fs.exists("video.32vid") then
+                -- Launch Sanjuuni Player
+                local oldTerm = term.redirect(monitor)
+                shell.run("32vid-player-mini.lua", "video.32vid")
+                term.redirect(oldTerm)
+                -- Resume TV loop
+                render()
+            else
+                currentChannel = (currentChannel % #channels) + 1
+                pcall(function() speaker.playNote("harp", 1, 15) end)
+            end
+        elseif p1 >= 2 and p1 <= 7 then 
             currentChannel = (p1 - 1)
             pcall(function() speaker.playNote("harp", 1, 15) end)
         end

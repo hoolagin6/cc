@@ -18,27 +18,10 @@ local function download(url, path)
     return false
 end
 
-print("Syncing Art Gallery...")
-if not fs.exists("art") then fs.makeDir("art") end
-
--- Get the list of art files
-if download(BASE_URL .. "art/list.txt", "art/list.txt") then
-    local f = fs.open("art/list.txt", "r")
-    local line = f.readLine()
-    while line do
-        -- Trim whitespace/newlines
-        line = line:gsub("%s+", "")
-        if #line > 0 then
-            print(" Downloading: " .. line)
-            if download(BASE_URL .. "art/" .. line, "art/" .. line) then
-                print("  OK.")
-            else
-                print("  FAILED.")
-            end
-        end
-        line = f.readLine()
-    end
-    f.close()
+print("Syncing Sanjuuni Player...")
+if not fs.exists("bimg-player.lua") then
+    print(" Downloading player...")
+    download("https://raw.githubusercontent.com/MCJack123/sanjuuni/master/bimg-player.lua", "bimg-player.lua")
 end
 
 print("Updating Program...")
